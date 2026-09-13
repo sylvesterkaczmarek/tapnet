@@ -567,12 +567,15 @@ def compute_clusters(
   separation_tracks = separation_tracks[enough_visible]
   separation_visibility = separation_visibility[enough_visible]
   if query_features is not None:
-    # query_features carries information about the original video
-    # shape in zero-sized arrays; all tensors except these should
-    # be indexed.
-    query_features = jax.tree_util.tree_map(
-        lambda x: x[:, enough_visible] if np.prod(x.shape) > 0 else x,
-        query_features,
+    # Filter only per-point feature arrays. Resolution entries encode metadata
+    # in their shapes and must not be indexed as query points.
+    query_features = query_features._replace(
+        lowres=jax.tree_util.tree_map(
+            lambda x: x[:, enough_visible], query_features.lowres
+        ),
+        hires=jax.tree_util.tree_map(
+            lambda x: x[:, enough_visible], query_features.hires
+        ),
     )
   separation_tracks_dict = jax.tree_util.tree_map(
       lambda x: x[enough_visible], separation_tracks_dict
