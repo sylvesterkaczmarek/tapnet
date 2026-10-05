@@ -59,11 +59,11 @@ def coordinate_softmax(logits, labels, mask, pixel_size=256):
     logits (*shape, n_bins x 2): marginal softmax logits for predicting x and y
       coordinates
     labels (*shape, 2): taget coordinates
-    mask (*shape): visibility mask
+    mask (*shape or *shape, 1): per-point visibility weights
     pixel_size (int): pixel size of the image
 
   Returns:
-    loss (float): the softmax loss
+    loss (float): the visibility-weighted softmax loss
   """
   logits = logits.float()
   labels = labels.float()
@@ -75,10 +75,12 @@ def coordinate_softmax(logits, labels, mask, pixel_size=256):
   logits_x, logits_y = logits.chunk(2, dim=1)
   labels_x, labels_y = labels.chunk(2, dim=1)
   print(logits_x.shape, labels_x.shape)
-  loss_x = F.cross_entropy(logits_x, labels_x.squeeze(1))
-  loss_y = F.cross_entropy(logits_y, labels_y.squeeze(1))
+  loss_x = F.cross_entropy(logits_x, labels_x.squeeze(1), reduction='none')
+  loss_y = F.cross_entropy(logits_y, labels_y.squeeze(1), reduction='none')
   loss = loss_x + loss_y
   mask = mask.float()
+  if mask.ndim == loss.ndim + 1:
+    mask = mask.squeeze(-1)
   loss = (loss * mask).sum() / mask.sum()
   return loss
 
